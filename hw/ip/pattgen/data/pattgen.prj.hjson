@@ -1,0 +1,21 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+{
+    name:               "pattern",
+    design_spec:        "hw/ip/pattern/doc",
+    dv_plan:            "hw/ip/pattern/doc/dv_plan",
+    hw_checklist:       "hw/ip/pattern/doc/checklist",
+    revisions: [
+      {
+        version:            "0.5",
+        life_stage:         "L1",
+        design_stage:       "D1",
+        verification_stage: "V1",
+        dif_stage:          "S0",
+        commit_id:          "ff9c06167bc34d921974839017dec54f0fb8347a",
+        notes:              ""
+      }
+    ]
+}
