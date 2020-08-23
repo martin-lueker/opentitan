@@ -35,8 +35,8 @@ This IP block does not have any direct hardware compatibility requirements.
 
 To start pattern generation, the registers interface of PATTGEN HWIP should be properly initialized and configured.
 To configure a single channel:
-1. Before configuration, desable the desired channel by clearing the corresponding enable bit: ({{<regref PATT_CTRL.ENABLE_CH0>}} for Channel 0, {{<regref PATT_CTRL.ENABLE_CH1>}} for Channel 1).
-1. Set the polarity bit ({{<regref PATT_CTRL.POLARITY_CH0>}} for Channel 0, {{<regref PATT_CTRL.POLARITY_CH1>}} for Channel 1) to determine the desired clock phase.
+1. Before configuration, disable the desired channel by clearing the corresponding enable bit: ({{< "regref PATT_CTRL.ENABLE_CH0" >}} for Channel 0, {{< regref "PATT_CTRL.ENABLE_CH1" >}} for Channel 1).
+1. Set the polarity bit ({{< regref "PATT_CTRL.POLARITY_CH0" >}} for Channel 0, {{< regref "PATT_CTRL.POLARITY_CH1" >}} for Channel 1) to determine the desired clock phase.
 For either channel, a zero in the polarity bit indicates that the channel clock line (`pcl`) should start low, and the channel data line `pda` transition on every falling edge of `pcl`.
 A one in the polarity bit inverts the `pcl` clock so that it starts high and `pda` transitions on the rising edge.
 {{<wavejson>}}
@@ -53,18 +53,18 @@ A one in the polarity bit inverts the `pcl` clock so that it starts high and `pd
   head: {text: 'Effect of the Polarity Registers',tick:0}}
 {{</wavejson>}}
 
-1. Program the seed patterns (1-64 bits in length) using the muli-registers {{< regref "PATT_DATA_CH0" >}} (for Channel 0) or {{<regref "PATT_CH1_DATA" >}} (for Channel 1).
+1. Program the seed patterns (1-64 bits in length) using the multi-registers {{< regref "PATT_DATA_CH0" >}} (for Channel 0) or {{<regref "PATT_CH1_DATA" >}} (for Channel 1).
 For either channel, the first 32 bits to be transmitted, are programmed in the lower half of the multi-register (e.g. {{< regref "PATT_DATA_CH0_0" >}}), and the latter 32 bits are programmed in the upper half of multi-register (e.g. {{< regref "PATT_DATA_CH0_1" >}}).
-1. Program the clock divider ratios to the approprpriate registers, {{< regref "PATT_PREDIV_CH0.CLK_RATIO" >}} for Channel 0 or {{< regref "PATT_PREDIV_CH1.CLK_RATIO" >}} for Channel 1.
-The resuling clock frequency will be slower than the input I/O clock by a ratio of 2&times;(CLK_RATIO+1):
+1. Program the clock divider ratios to the appropriate registers, {{< regref "PATT_PREDIV_CH0.CLK_RATIO" >}} for Channel 0 or {{< regref "PATT_PREDIV_CH1.CLK_RATIO" >}} for Channel 1.
+The resulting clock frequency will be slower than the input I/O clock by a ratio of 2&times;(CLK_RATIO+1):
 $$f_{pclx}=\frac{f_\textrm{I/O clk}}{2(\textrm{CLK_RATIO}+1)}$$
-1. Program the length of seed pattern using one of the fields {{<regref "PATT_SIZE.LEN_CH0">}}, for Channel 0. or {{<regref "PATT_SIZE.LEN_CH1">}} for Channel 1.
+1. Program the length of seed pattern using one of the fields {{< regref "PATT_SIZE.LEN_CH0" >}}, for Channel 0. or {{< regref "PATT_SIZE.LEN_CH1" >}} for Channel 1.
 Note that since the allowed seed length ranges from 1-64, the value of this field should be one less than the pattern length.
-For example, to generate an 16-bit pattern on Channel 1, a value of 15 should written to the field {{< regref "PATT_SIZE.LEN_CH1" >}}. 
-1. Program the desired number of pattern repetitions using one of the fields {{< regref "PATT_SIZE.REPS_CH0" >}} for Channel 0, or {{< regref "PATT_SIZE.REPS_CH1" >}}  for channel 1.
+For example, to generate an 16-bit pattern on Channel 1, a value of 15 should be written to the field {{< regref "PATT_SIZE.LEN_CH1" >}}. 
+1. Program the desired number of pattern repetitions using one of the fields {{< regref "PATT_SIZE.REPS_CH0" >}} for Channel 0, or {{< regref "PATT_SIZE.REPS_CH1" >}} for Channel 1.
 Note that since the allowed number of pattern repetitions ranges from 1-1024, the value of this field should be one less than the desired repetition count.
 For example, to repeat a pattern 30 times on Channel 1, a value of 29 should written to the field {{< regref "PATT_SIZE.REPS_CH1" >}}. 
-1. Finally to start the pattern, set the {{<regref PATT_CTRL.ENABLE_CH0>}} to enable Channel 0 or set {{<regref PATT_CTRL.ENABLE_CH1>}} to enable Channel 1.
+1. Finally to start the pattern, set the {{< regref "PATT_CTRL.ENABLE_CH0" >}} to enable Channel 0 or set {{< regref "PATT_CTRL.ENABLE_CH1" >}} to enable Channel 1.
 Set both bits simultaneously, to start both channel patterns at the same time.
 
 The pattern can be halted on either channel by setting the corresponding `PATT_CTRL.ENABLE` bit to 0 for the desired channel.
@@ -110,7 +110,7 @@ The FSM clock output, `pcl`, is directly driven by `clk_int`, unless the `polari
 
 The `bit_ctr` counter increments on every falling edge of `clk_int`, until it overflows at the pattern length based on the `pattern_size` input.
 
-In the `ACTIVE` state, the FSM `pda` output is driven by a multiplexor, connected to the `pattern` input.
+In the `ACTIVE` state, the FSM `pda` output is driven by a multiplexer, connected to the `pattern` input.
 The value of `bit_ctr` selects the bit value from the appropriate sequence position, via this multiplexor.
 
 Finally whevever `bit_ctr` overflows and reverts to zero, the `repeat_ctr` increments, and the pattern starts again.
