@@ -87,6 +87,9 @@ tl_device_t xbar_devices[$] = '{
     }},
     '{"ast_wrapper", '{
         '{32'h40180000, 32'h40180fff}
+    }},
+    '{"i2c", '{
+        '{32'h401d0000, 32'h401d0fff}
     }}};
 
   // List of Xbar hosts
@@ -114,6 +117,7 @@ tl_host_t xbar_hosts[$] = '{
         "otp_ctrl",
         "sensor_ctrl",
         "ast_wrapper",
+        "i2c",
         "flash_ctrl",
         "aes",
         "hmac",
@@ -142,6 +146,7 @@ tl_host_t xbar_hosts[$] = '{
         "otp_ctrl",
         "sensor_ctrl",
         "ast_wrapper",
+        "i2c",
         "flash_ctrl",
         "aes",
         "hmac",

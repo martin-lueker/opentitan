@@ -212,6 +212,16 @@ package top_earlgrey_pkg;
   parameter int unsigned TOP_EARLGREY_OTP_CTRL_SIZE_BYTES = 32'h4000;
 
   /**
+   * Peripheral base address for i2c in top earlgrey.
+   */
+  parameter int unsigned TOP_EARLGREY_I2C_BASE_ADDR = 32'h401d0000;
+
+  /**
+   * Peripheral size in bytes for i2c in top earlgrey.
+   */
+  parameter int unsigned TOP_EARLGREY_I2C_SIZE_BYTES = 32'h1000;
+
+  /**
    * Peripheral base address for otbn in top earlgrey.
    */
   parameter int unsigned TOP_EARLGREY_OTBN_BASE_ADDR = 32'h50000000;

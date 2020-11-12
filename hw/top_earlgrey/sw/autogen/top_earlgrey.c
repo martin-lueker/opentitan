@@ -11,7 +11,7 @@
  * `top_earlgrey_plic_peripheral_t`.
  */
 const top_earlgrey_plic_peripheral_t
-    top_earlgrey_plic_interrupt_for_peripheral[88] = {
+    top_earlgrey_plic_interrupt_for_peripheral[103] = {
   [kTopEarlgreyPlicIrqIdNone] = kTopEarlgreyPlicPeripheralUnknown,
   [kTopEarlgreyPlicIrqIdGpioGpio0] = kTopEarlgreyPlicPeripheralGpio,
   [kTopEarlgreyPlicIrqIdGpioGpio1] = kTopEarlgreyPlicPeripheralGpio,
@@ -100,6 +100,21 @@ const top_earlgrey_plic_peripheral_t
   [kTopEarlgreyPlicIrqIdKmacKmacDone] = kTopEarlgreyPlicPeripheralKmac,
   [kTopEarlgreyPlicIrqIdKmacFifoEmpty] = kTopEarlgreyPlicPeripheralKmac,
   [kTopEarlgreyPlicIrqIdKmacKmacErr] = kTopEarlgreyPlicPeripheralKmac,
+  [kTopEarlgreyPlicIrqIdI2cFmtWatermark] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cRxWatermark] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cFmtOverflow] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cRxOverflow] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cNak] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cSclInterference] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cSdaInterference] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cStretchTimeout] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cSdaUnstable] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cTransComplete] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cTxEmpty] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cTxNonempty] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cTxOverflow] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cAcqOverflow] = kTopEarlgreyPlicPeripheralI2c,
+  [kTopEarlgreyPlicIrqIdI2cAckStop] = kTopEarlgreyPlicPeripheralI2c,
 };
 
 
