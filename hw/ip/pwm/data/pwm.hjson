@@ -1,0 +1,120 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+{ name: "pwm",
+  clock_primary: "clk_i",
+  bus_device: "tlul",
+  bus_host: "none",
+  regwidth: "32",
+  param_list: [
+    { name: "NOutputs",
+      desc: "Number of PWM outputs",
+      type: "int",
+      default: "6",
+    }
+  ]
+  available_output_list: [
+    { name:  "pwm"
+      desc:  "pulse output"
+      width: "6"
+    }
+  ]
+  registers: [
+    { name: "CFG",
+      desc: "Configuration register",
+      swaccess: "rw",
+      fields: [
+        { bits: "31",
+          name: "CNTR_EN",
+          desc: '''Write 1 enables the PWM counter
+                   Writing 0 disables the PWM counter, also resets the counter
+                '''   
+          resval: "0x0"             
+        },
+        { bits: "23:0",
+          name: "CLK_DIV",
+          desc: '''Sets the base period for the rest of the IP.
+	           The output drive frequency for each channel will be the input clock frequency, divided by 256*(CLK_DIV+1)
+		   (The factor 256 accounts for the fact that the internal duty cycle counters operate with 8-bit resolution).
+		'''   
+          resval: "0x00000090"
+        }
+      ]
+    },
+    { multireg: { name: "PWM_PARAM",
+        desc: "Controls the duty cycle and phase of each channel.",
+        count: "NOutputs"
+        swaccess: "rw",
+	cname: "pwm_param",
+        fields: [
+	  { bits: "31",
+	    name: "CH_ENABLE",
+	    desc: "Writing 1 enables the corresponding channel.",
+	    resval: "0"
+	  },
+          { bits: "23:16",
+            name: "PHASE_DELAY",
+            desc: "Phase delay of the PWM rising edge, in units of 1/256th of a cycle",
+            resval: "0x00"
+          },
+	  { bits: "7:0",
+	    name: "DUTY_CYCLE",
+	    desc: '''PWM output duty cycle.  A value of 0 corresponds to the minimal duty cycle of 1/256. 
+	             The total duty cycle is (DUTY_CYCLE+1)/256
+		  '''
+	    resval: "0x7f" 
+          }
+        ]
+      }
+    },
+    { multireg: { name: "BLINK_EN",
+        desc: "Enable Hardware controlled blink feature for each channel"
+	count: "NOutputs"
+	swaccess: "rw",
+	cname: "blink_en",
+	fields: [
+          bits: "0",
+	  name: "BLINK_EN",
+	  desc: '''Write 1 to this bit to enable blinking for the corresponding channel.
+	           Clearing this bit to zero disables blinking, meaning the corresponding
+		   channel is continuously on.  Clearing this bit also resets the internal
+		   blink counters.'''
+	  resval: "0"
+        ]
+      }
+    },
+    { multireg: { name: "BLINK_PARAM",
+        desc: "Hardware controlled blink parameters.",
+        count: "NOutputs"
+        swaccess: "rw",
+	cname: "blink_param",
+        fields: [
+          { bits: "31:16",
+            name: "FREQ_DIV",
+            desc: '''Channel-specific blink frequency divider.  The blink frequency for each channel is given by
+                     the common PWM drive frequency divided by (FREQ_DIV+1). 
+                  '''
+            resval: "0x0000"
+          }
+	  { bits: "15:8",
+	    name: "BLINK_DLY"
+	    desc: '''The relative phase delay for each blink cycle, in units of 1/256th of a cycle.
+	             The total phase delay is given by (BLINK_DLY+1)/256.  Set BLINK_DLY to 0xff
+		     for zero phase delay.
+		  '''
+            resval: "0x00"
+          }
+	  { bits: "7:0",
+	    name: "BLINK_DUTY_CYCLE",
+	    desc: '''The blink duty cycle in units of 1/256th of a blink cycle.
+	             The total duty cycle is (BLINK_DUTY_CYCLE+1)/256.
+		     Setting this register to 0xff renders the output PWM driver always on.
+		  '''
+            resval: "0x7f"
+	  } 
+        ]
+      }
+    }
+  ]
+}
+
