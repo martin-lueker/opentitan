@@ -78,6 +78,7 @@ config = {
         "hw/top_earlgrey/ip/rstmgr/data/autogen/rstmgr.hjson",
         "hw/top_earlgrey/ip/rv_plic/data/autogen/rv_plic.hjson",
         "hw/ip/rv_timer/data/rv_timer.hjson",
+        "hw/ip/spi_host/data/spi_host.hjson",
         "hw/ip/spi_device/data/spi_device.hjson",
         "hw/ip/sram_ctrl/data/sram_ctrl.hjson",
         "hw/ip/uart/data/uart.hjson",
@@ -363,13 +364,13 @@ def install_hugo(install_dir):
     # TODO: Support more configurations
     if platform.system() == 'Linux' and platform.machine() == 'x86_64':
         download_url = ('https://github.com/gohugoio/hugo/releases/download/v{version}'
-                '/hugo_extended_{version}_Linux-64bit.tar.gz').format(
-                        version=HUGO_EXTENDED_VERSION)
+                        '/hugo_extended_{version}_Linux-64bit.tar.gz').format(
+            version=HUGO_EXTENDED_VERSION)
 
     elif platform.system() == 'Darwin' and platform.machine() == 'x86_64':
-        download_url =  ('https://github.com/gohugoio/hugo/releases/download/v{version}'
-                '/hugo_extended_{version}_macOS-64bit.tar.gz').format(
-                        version=HUGO_EXTENDED_VERSION)
+        download_url = ('https://github.com/gohugoio/hugo/releases/download/v{version}'
+                        '/hugo_extended_{version}_macOS-64bit.tar.gz').format(
+            version=HUGO_EXTENDED_VERSION)
 
     else:
         logging.fatal(
