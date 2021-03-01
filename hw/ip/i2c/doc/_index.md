@@ -250,17 +250,19 @@ If {{< regref STRETCH_CTRL.ENABLEADDR >}} is asserted, a target stretches the cl
 
 {{<wavejson>}}
 {signal: [
-  {name: 'clock', wave: 'p..................'},
-  {name: 'stretch_en_addr', wave: '1..................'},
-  {name: 'stretch_stop', wave: '0.............1....'},
-  {name: 'bit_ack', wave: '0........1.........'},
-  {name: 'address_match', wave: '0........1.........'},
-  {name: 'SCL host driver', wave: '0z.0..z.0..z.0..z.0'},
-  {name: 'SCL target driver', wave: 'z.........0....z...'},
-  {name: 'SCL bus', wave: '0u.0..u.0.......u.0'},
+  {name: 'clock', wave: 'p...................'},
+  {name: 'stretch_en_addr', wave: '1...................'},
+  {name: 'stretch_stop', wave: '0.............1.....'},
+  {name: 'bit_ack', wave: '0........1..........'},
+  {name: 'address_match', wave: '0........1..........'},
+  {name: 'SCL host driver', wave: '0z.0..z.0..z.....0..'},
+  {name: 'SCL target driver', wave: 'z.........0....z....'},
+  {name: 'SCL bus', wave: '0u.0..u.0......u.0..'},
 ],
- head: {text: 'Clock stretching after matching an address (cycle 10), normal operation is resumed and address is acknowledged (cycle 15)'}
+ head: {text: 'Clock stretching after matching an address (cycle 10), normal operation is resumed and address is acknowledged (cycle 15)',
+        tick:1},
 }
+
 {{</wavejson>}}
 
 If {{< regref STRETCH_CTRL.ENABLETX >}} is asserted, a target stretches the clock after an ongoing byte transmit operation (host is reading) completes and a host acknowledges the receipt.
@@ -271,11 +273,12 @@ If {{< regref STRETCH_CTRL.ENABLETX >}} is asserted, a target stretches the cloc
   {name: 'stretch_en_tx', wave: '1..................'},
   {name: 'stretch_stop', wave: '0.............1....'},
   {name: 'host_ack', wave: '0......1...........'},
-  {name: 'SCL host driver', wave: '0z.0..z.0..z.0..z.0'},
+  {name: 'SCL host driver', wave: '0z.0..z.0..z.....0.'},
   {name: 'SCL target driver', wave: 'z.......0......z...'},
-  {name: 'SCL bus', wave: '0u.0..u.0.......u.0'},
+  {name: 'SCL bus', wave: '0u.0..u.0......u.0.'},
 ],
- head: {text: 'Clock stretching after receiving an acknowledgement from host (cycle 7), normal operation is resumed (cycle 15)'}
+ head: {text: 'Clock stretching after receiving an acknowledgement from host (cycle 8), normal operation is resumed (cycle 15)',
+        tick:1}
 }
 {{</wavejson>}}
 
@@ -288,11 +291,12 @@ The target device stops stretching the clock and resumes normal operation when {
   {name: 'stretch_en_acq', wave: '1..................'},
   {name: 'stretch_stop', wave: '0.............1....'},
   {name: 'bit_ack', wave: '0........1.........'},
-  {name: 'SCL host driver', wave: '0z.0..z.0..z.0..z.0'},
+  {name: 'SCL host driver', wave: '0z.0..z.0..z.....0.'},
   {name: 'SCL target driver', wave: 'z.........0....z...'},
-  {name: 'SCL bus', wave: '0u.0..u.0.......u.0'},
+  {name: 'SCL bus', wave: '0u.0..u.0......u.0.'},
 ],
- head: {text: 'Clock stretching after acquiring a byte (cycle 10), normal operation is resumed and byte is acknowledged (cycle 15)'}
+ head: {text: 'Clock stretching after acquiring a byte (cycle 10), normal operation is resumed and byte is acknowledged (cycle 15)',
+        tick:1}
 }
 {{</wavejson>}}
 
