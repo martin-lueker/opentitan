@@ -2,8 +2,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-module pwm_chan
-(
+module pwm_chan (
   input        clk_i,
   input        rst_ni,
 
@@ -36,11 +35,13 @@ module pwm_chan
    assign on_phase = phase_delay_i;
    assign {phase_wrap, off_phase} = phase_delay_i + duty_cycle_actual;
 
-   // TODO: Check for fence-post errors w.r.t. documentation
-   assign pwm_int = pwm_en_i ? 1'b0 :
-                    phase_wrap ?
-                    (phase_ctr_i < off_phase) | (phase_ctr_i > on_phase) :
-                    (phase_ctr_i > on_phase) & (phase_ctr_i < off_phase);
+   logic on_phase_exceeded  = (phase_ctr_i >= on_phase);
+   logic off_phase_exceeded = (phase_ctr_i >= off_phase);
+
+   assign pwm_int = pwm_en_i   ? 1'b0 :
+                    phase_wrap ? on_phase_exceeded | ~off_phase_exceeded :
+                                 on_phase_exceeded & ~off_phase_exceeded;
+
    assign pwm_o = invert_i ? ~pwm_int : pwm_int;
 
 endmodule : pwm_chan

@@ -64,7 +64,7 @@ module pwm_core #(
   assign beat_end = (beat_ctr_q == clk_div_sync);
 
   always_ff @(posedge clk_core_i or negedge rst_core_ni) begin
-    if(~rst_core_ni) begin
+    if (~rst_core_ni) begin
       beat_ctr_q <= 27'h0;
     end else begin
       beat_ctr_q <= beat_ctr_en ? beat_ctr_d : beat_ctr_q;
@@ -80,36 +80,35 @@ module pwm_core #(
   assign cycle_end = beat_end & phase_ctr_overflow;
 
   always_ff @(posedge clk_core_i or negedge rst_core_ni) begin
-    if(~rst_core_ni) begin
+    if (~rst_core_ni) begin
       phase_ctr_q <= 16'h0;
     end else begin
       phase_ctr_q <= phase_ctr_en ? phase_ctr_d : phase_ctr_q;
     end
   end
 
-  genvar ii;
-  for(ii = 0; ii < NOutputs; ii = ii + 1) begin : chan_insts
+  for (genvar ii = 0; ii < NOutputs; ii = ii + 1) begin : chan_insts
 
     //
     // PWM Channel Instantiation
     //
 
     pwm_chan u_chan (
-      .clk_i(clk_core_i),
-      .rst_ni(rst_core_ni),
-      .pwm_en_i(reg2hw_sync.pwm_en[ii].q),
-      .invert_i(reg2hw_sync.invert[ii].q),
-      .phase_delay_i(reg2hw_sync.pwm_param[ii].phase_delay.q),
-      .blink_en_i(reg2hw_sync.pwm_param[ii].blink_en.q),
-      .htbt_en_i(reg2hw_sync.pwm_param[ii].htbt_en.q),
-      .duty_cycle_a_i(reg2hw_sync.duty_cycle[ii].a.q),
-      .duty_cycle_b_i(reg2hw_sync.duty_cycle[ii].b.q),
-      .blink_param_x_i(reg2hw_sync.blink_param[ii].x.q),
-      .blink_param_y_i(reg2hw_sync.blink_param[ii].y.q),
-      .phase_ctr_i(phase_ctr_q),
-      .clr_blink_cntr_i(clr_blink_cntr[ii]),
-      .cycle_end_i(cycle_end),
-      .pwm_o(pwm_o[ii])
+      .clk_i            (clk_core_i),
+      .rst_ni           (rst_core_ni),
+      .pwm_en_i         (reg2hw_sync.pwm_en[ii].q),
+      .invert_i         (reg2hw_sync.invert[ii].q),
+      .phase_delay_i    (reg2hw_sync.pwm_param[ii].phase_delay.q),
+      .blink_en_i       (reg2hw_sync.pwm_param[ii].blink_en.q),
+      .htbt_en_i        (reg2hw_sync.pwm_param[ii].htbt_en.q),
+      .duty_cycle_a_i   (reg2hw_sync.duty_cycle[ii].a.q),
+      .duty_cycle_b_i   (reg2hw_sync.duty_cycle[ii].b.q),
+      .blink_param_x_i  (reg2hw_sync.blink_param[ii].x.q),
+      .blink_param_y_i  (reg2hw_sync.blink_param[ii].y.q),
+      .phase_ctr_i      (phase_ctr_q),
+      .clr_blink_cntr_i (clr_blink_cntr[ii]),
+      .cycle_end_i      (cycle_end),
+      .pwm_o            (pwm_o[ii])
     );
 
   end : chan_insts

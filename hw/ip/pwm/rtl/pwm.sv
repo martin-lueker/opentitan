@@ -4,8 +4,7 @@
 
 `include "prim_assert.sv"
 
-module pwm
-#(
+module pwm #(
   parameter int NOutputs = 6
 ) (
   input                       clk_i,
@@ -33,8 +32,8 @@ module pwm
     .tl_i,
     .tl_o,
     .reg2hw,
-    .intg_err_o(),
-    .devmode_i(1'b1)
+    .intg_err_o (),
+    .devmode_i  (1'b1)
   );
 
   assign cio_pwm_en_o = {NOutputs{1'b1}};
@@ -43,7 +42,7 @@ module pwm
     .clk_core_i,
     .rst_core_ni,
     .reg2hw,
-    .pwm_o(cio_pwm_o)
+    .pwm_o       (cio_pwm_o)
   );
 
   `ASSERT_KNOWN(TlDValidKnownO_A, tl_o.d_valid)

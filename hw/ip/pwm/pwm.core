@@ -43,13 +43,6 @@ filesets:
       - lowrisc:lint:common
       - lowrisc:lint:comportable
 
-#  No DV yet in this PR
-#
-#  files_formal:
-#    files:
-#      - dv/tb/pwm_bind.sv
-#    file_type: systemVerilogSource
-
 parameters:
   SYNTHESIS:
     datatype: bool
@@ -62,18 +55,8 @@ targets:
       - tool_verilator   ? (files_verilator_waiver)
       - tool_ascentlint  ? (files_ascentlint_waiver)
       - tool_veriblelint ? (files_veriblelint_waiver)
-#     files_formal yet undefined
-#     - target_formal    ? (files_formal)
       - files_rtl
     toplevel: pwm
-
-#  files_formal yet undefined
-#
-#  formal:
-#    filesets:
-#      - files_rtl
-#      - files_formal
-#    toplevel: pwm
 
   lint:
     <<: *default_target
