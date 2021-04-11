@@ -35,8 +35,12 @@ module pwm_chan (
    assign on_phase = phase_delay_i;
    assign {phase_wrap, off_phase} = {1'b0, phase_delay_i} + {1'b0, duty_cycle_actual};
 
-   logic on_phase_exceeded  = (phase_ctr_i >= on_phase);
-   logic off_phase_exceeded = (phase_ctr_i >= off_phase);
+   logic on_phase_exceeded;
+   logic off_phase_exceeded;
+
+   assign on_phase_exceeded  = (phase_ctr_i >= on_phase);
+   assign off_phase_exceeded = (phase_ctr_i >= off_phase);
+
 
    assign pwm_int = pwm_en_i   ? 1'b0 :
                     phase_wrap ? on_phase_exceeded | ~off_phase_exceeded :
