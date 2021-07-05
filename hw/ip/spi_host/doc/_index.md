@@ -615,6 +615,230 @@ To use this reset, assert {{< regref "CONTROL.SW_RST" >}}, and then wait for the
 - Byte Merge
 - TX FIFO and RXFIFO interfaces
 
+### Command and Config CDC
+
+Highlights for this unit:
+- New commands can always be written to {{< regref "COMMAND" >}} or {{< regref "CONFIGOPTS" >}}
+- It is an error however to write a segment to {{< regref "COMMAND" >}} unless {{< regref "STATUS.READY" >}} is one.
+- Writing a segment to {{< regref "COMMAND" >}} triggers a four-phase synchronizer, which copies the relevant multi-registers and `csb` masks to `coreCmdConf`.
+- {{<regref "STATUS.READY" >}} is low while this synchronizer is in operation
+- The core FSM is responsible for issuing the `cc_ack` signal.
+- `coreCmdCnf` is only updated and acknowledged (using `cc_ack`) when the FSM is not busy.
+
+{{< wavejson >}}
+{signal: [
+  {name: "command_i", wave: "x3x..........|4x.|........."},
+  {name: "command_valid_i", wave: "010..........|10.|........."},
+  {name: "command_q", wave: "x.3..........|.4.|........."},
+  {name: "req_q", wave: "0.1....0.....|.1.|...0....."},
+  {name: "core_req", wave: "0...1....0...|..1|.....0..."},
+  {name: "core_command_ready_i", wave: "1....0.......|...|10......."},
+  {name: "core_command_valid_o (core_req & ~core_ack_q)", wave: "0...10.......|...|10......."},
+  {name: "core_command_ack", wave: "0...10.......|...|10......."},
+  {name: "core_ack_q", wave: "0....1....0..|...|.1....0.."},
+  {name: "core_ack = core_command_ack | ack_core_q", wave: "0...1.....0..|...|1.....0.."},
+  {name: "ack", wave: "0.....1.....0|...|..1.....0"},
+  {name: "cs_ready_bus_o", wave: "10..........1|0..|........1"},
+]
+}
+{{< /wavejson >}}
+
+{{< wavejson >}}
+{ signal: [
+  {name: "clk", wave: "p..............................."},
+  {name: "READY",         wave: "1.0..........1|.0..|...........1"},
+  {name: "COMMAND, CONFIGOPTS", wave: "x3............|4...|............"},
+  {name: "GO.q && GO.qe", wave: "010...........|10..|............"},
+  {name: "cc_req",        wave: "01.....0......|1...|.....0......"},
+  {name: "cc_req_syncd",  wave: "0..1.....0....|..1.|.......0...."},
+  {name: "cc_ack",        wave: "0...1.....0...|....|..1.....0..."},
+  {name: "cc_ack_ayncd",  wave: "0.....1.....0.|....|....1.....0."},
+  {name: "core_cmd_cnf", wave: "x...3.........|....|..4........."},
+  {name: "core_active",   wave: "0...1.........|....|.01........."},
+],
+  head: {text: 'Command and Config Synchronizer Operation'},
+  foot: {text: "Synchronizer delay uncertainties are not illustrated."}
+}
+{{< /wavejson >}}
+
+### Shift Register
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p.........................."},
+  {name: "txfifo.out[31:0]", wave: "2..........................", data:"0x123456XX"},
+  {name: "bytesel.out[7:0]", wave: "2..2...............2.......", data:["0x12", "0x34", "0x56"]},
+  {name: "cio_sck_o",        wave: "0...1010101010101010101010."},
+  {name: "cio_csb_o[0]",     wave: "1..0......................."},
+  {name: "cio_sd_i[1]",      wave: "x..1.1.0.0.1.1.1.1.0.1.0.1."},
+  {name: "sd_i_q[1]",        wave: "x...1.1.0.0.1.1.1.1.0.1.0.1"},
+  {name: "shiftreg.sample",  wave: "0..101010101010101010101010"},
+  {name: "shiftreg.shift",   wave: "0...10101010101010..1010101"},
+  {name: "shiftreg.wr_en",   wave: "0.10..............10......."},
+  {name: "shiftref.rd_en",   wave: "0.................10......."},
+  {name: "shiftreg.mode",    wave: "2..........................", data: ["0"]},
+  {name: "shiftreg.q[0]",    wave: "x..0.1.1.0.0.1.1.1.0.1.0.1."},
+  {name: "shiftreg.q[1]",    wave: "x..1.0.1.1.0.0.1.1.0.0.1.0."},
+  {name: "shiftreg.q[2]",    wave: "x..0.1.0.1.1.0.0.1.1.0.0.1."},
+  {name: "shiftreg.q[3]",    wave: "x..0.0.1.0.1.1.0.0.0.1.0.0."},
+  {name: "shiftreg.q[4]",    wave: "x..1.0.0.1.0.1.1.0.1.0.1.0."},
+  {name: "shiftreg.q[5]",    wave: "x..0.1.0.0.1.0.1.1.1.1.0.1."},
+  {name: "shiftreg.q[6]",    wave: "x..0.0.1.0.0.1.0.1.0.1.1.0."},
+  {name: "shiftreg.q[7]",    wave: "x..0.0.0.1.0.0.1.0.0.0.1.1."},
+  {name: "shiftreg.q (hex)", wave: "x..4.2.2.2.2.2.2.2.4.2.2.2.",
+   data: ["0x12", "0x25", "0x4B", "0x96", "0x2c", "0x59", "0xB3", "0x67", "0x34", "0x69", "0xD2", "0xA5"]},
+  {name: "bytemerge.in[7:0]", wave: "x..................2.......", data: ["0xcf"]},
+  {name: "cio_sd_o[0] (shiftreg.q[7])",   wave: "x..0.0.0.1.0.0.1.0.0.0.1.1."},
+],
+edge: [],
+  head: {
+  text: "Standard SPI transaction, showing simultaneous receipt and transmission of data."
+  },
+   foot: {
+   }
+}
+{{< /wavejson >}}
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p..........................."},
+  {name: "wr_en_i", wave: "010..10..10..10..10..10..1.0"}, 
+  {name: "shift_en_i", wave: "0..10..10..10..10..10..10..."}, 
+  {name: "fsm_rd_en_i", wave: "0....10..10..10..10..10..1.0"},
+  {name: "rxvalid_o", wave: "0.....10..1....0..10..1....."},
+  {name: "rxready_i", wave: "1......0.....1.....0......1.", 
+                      node: ".......A.....B.....C......D"},
+  {name: "fsm_rd_ready_o", wave: "1.........0..1........0...1."},
+  {name: "fsm:rxstall", wave: "0........................10."},
+  {name: "", wave: ""},
+],
+  edge: ["A<->B 6 clocks: No Stall", "C<->D 7 clocks will stall FSM"],
+  head: {text: "SPI_HOST Shift Register: Tolerance to Gaps in rxready_i", tick:1}
+}
+{{< /wavejson >}}
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p......................"},
+  {name: "wr_en_i", wave: "010..10..10..10..10..10"}, 
+  {name: "shift_en_i", wave: "0..10..10..10..10..10.."}, 
+  {name: "fsm_rd_en_i", wave: "0....10..10..10..10..10"},
+  {name: "rxvalid_o", wave: "0.....10..1............"},
+  {name: "rxready_i", wave: "1......0.....10..10..10", 
+                      node: ".......A.....BC..D"},
+  {name: "fsm_rd_ready_o", wave: "1.........0..10..10..10"},
+  {name: "fsm:rxstall", wave: "0......................"},
+  {name: "", wave: ""},
+],
+  edge: ["A<->B 1st Gap: 6 clocks", "C<->D 2nd Gap: 3 clocks"],
+  head: {text: "SPI_HOST Shift Register: Back-to-back gaps in rxready_i", tick:1} 
+}
+{{< /wavejson >}}
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p..........................."},
+  {name: "wr_en_i", wave: "010..10..10..10..10..10..1.0"}, 
+  {name: "shift_en_i", wave: "0..10..10..10..10..10..10..."}, 
+  {name: "fsm_rd_en_i", wave: "0....10..10..10..10..10..1.0"},
+  {name: "rxvalid_o", wave: "0.....10..1.0.1..01........."},
+  {name: "rxready_i", wave: "1......0...10...10...10...10", 
+                      node: ".......A...BC...D"},
+  {name: "fsm_rd_ready_o", wave: "1.........01..0.1.0..10...10"},
+  {name: "fsm:rxstall", wave: "0........................10."},
+],
+  edge: ["A<->B 4 clocks", "C<->D 4 clocks"],
+  head: {text: "SPI_HOST Shift Register: Hypothetical RX Congestion Scenario", tick:1},
+ foot: {text: "Six back-to-back quad reads 1-byte each, same CSID, CSAAT enabled"}
+}
+{{< /wavejson >}}
+
+#### Standard mode
+
+#### Dual mode
+
+#### Quad mode
+
+### Byte Select
+
+The Byte Select, or `bytesel`, unit is responsible for unpacking data from the FIFO to it can be loaded into the shift register
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p......................"},
+  {name: "txfifo.out[31:0]", wave: "x2.............x.......", data: ['0xDAD5F00D']},
+  {name: "txfifo.empty", wave: "10.............1......."},
+  {name: "txfifo.rd_en",wave: "0.............10......."},
+  {name: "bytesel.q[31:0]", wave:"2..............2.......", data: ['0xBEADCAFE', '0xDAD5F00D']},
+  {name: "bytesel.almost_empty", wave: "0..........1...0......."},
+  {name: "bytesel.empty", wave: "0......................"},
+  ['Big-Endian mode',
+    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [3, 2, 1, 0, 3, 2]},
+  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xBE', '0xAD', '0xCA', '0xFE', '0xDA', '0xD5']},
+  {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
+  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
+  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xBE', '0xEX', '0xAD', '0xDX', '0xCA', '0xAX', '0xFE', '0xEX','0xDA', '0xAX']},
+  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','B','E','A','D','C','A','F','E', 'D','A']},
+
+],
+  ['Little-Endian mode',
+    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [0, 1, 2, 3, 0, 1]},
+  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xFE', '0xCA', '0xAD', '0xBE', '0x0D', '0xF0']},
+     {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
+  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
+  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xFE', '0xEX', '0xCA', '0xAX', '0xAD', '0xDX', '0xBE', '0xEX','0x0D', '0xDX']},
+  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','F','E','C','A','A','D','B','E','0','D']},
+],
+],
+  head: {
+  text: "Processing of TX FIFO data as a function of the ByteOrder parameter (0: BE, 1: LE)"
+  },
+   foot: {
+   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always the MSB."
+   }
+}
+{{< /wavejson >}}
+
+### Byte Merge
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p......................"},
+
+  {name: "sd[0:3] (*)", wave: "2.2.2.2.2.2.2.2.2.2.2.2", data: ['B','E','A','D','C','A','F','E','D','A', 'D', '5']},
+  {name: "shiftreg.sample", wave: "10101010101010101010101"},
+  {name: "shiftreg.q[7:0]", wave: "42.2.2.2.2.2.2.2.2.2.2.", data:["X","0xXB", "0xBE", "0xEA", "0xAD","0xDC","0xCA","0xAF","0xFE","0xED", "0xDA", "0xAD"]},
+  {name: "bytemerge.rd_en", wave: "0..10..10..10..10..10.."},
+  {name: "bytemerge.almost_full", wave: "0...........1...0......"},
+  ['BE',
+  {name: "bytemerge.idx", wave:"2...2...2...2...2...2..", data: [3,2,1,0, 3, 2]},
+  {name: "rxfifo.data_in[31:0]", wave:"2...2...2...2...2...2..", data: ["0xXXXXXXXX","0xBEXXXXXX","0xBEADXXXX", "0xBEADCAXX", "0xBEADCAFE", "0xDAADCAFE"]},
+  ],
+  ['LE',
+  {name: "bytemerge.idx", wave:"2...2...2...2...2...2..", data: [0,1,2,3,0,1]},
+  {name: "rxfifo.data_in[31:0]", wave:"2...2...2...2...2...2..", data: ["0xXXXXXXXX","0xXXXXXXBE","0xXXXXADBE", "0xXXCAADBE", "0xFECAADBE", "0xFECAADAD"]},
+  ],
+
+  {name: "rxfifo.wr_en", wave: "0...............10....."},
+  {name: "rxfifo.full", wave: "0......................"}
+  ],
+  head: {
+  text: "Collection of RXFIFO data as a function of ByteOrder parameter"
+  },
+   foot: {
+   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always contains the MSB."
+   }
+}
+{{< /wavejson >}}
+
+#### End of Command
+
+#### RXFIFO Full or TX FIFO Empty
+
+### Config/Command CDC
+
+### Passthrough Mode Multiplexors
+
 # Programmer's Guide
 
 TODO
