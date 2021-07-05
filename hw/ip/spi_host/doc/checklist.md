@@ -41,24 +41,24 @@ Code Quality  | [LINT_SETUP][]                 | Done        |
 Type          | Item                    | Resolution  | Note/Collaterals
 --------------|-------------------------|-------------|------------------
 Documentation | [NEW_FEATURES][]        | Done        |
-Documentation | [BLOCK_DIAGRAM][]       | Not Started |
-Documentation | [DOC_INTERFACE][]       | Not Started |
-Documentation | [MISSING_FUNC][]        | Not Started |
+Documentation | [BLOCK_DIAGRAM][]       | Done        | Pending #7135
+Documentation | [DOC_INTERFACE][]       | Done        |
+Documentation | [MISSING_FUNC][]        | Done        |
 Documentation | [FEATURE_FROZEN][]      | Done        |
 RTL           | [FEATURE_COMPLETE][]    | Done        |
-RTL           | [AREA_CHECK][]          | Not Started |
+RTL           | [AREA_CHECK][]          | Done        |
 RTL           | [PORT_FROZEN][]         | Done        |
 RTL           | [ARCHITECTURE_FROZEN][] | Done        |
 RTL           | [REVIEW_TODO][]         | Not Started |
-RTL           | [STYLE_X][]             | Not Started |
-Code Quality  | [LINT_PASS][]           | Not Started |
-Code Quality  | [CDC_SETUP][]           | Not Started |
-Code Quality  | [FPGA_TIMING][]         | Not Started |
+RTL           | [STYLE_X][]             | Done        | Note: Still lacking ASSERT_KNOWNS for if's, ternaries 
+Code Quality  | [LINT_PASS][]           | Done        | Pending #7234
+Code Quality  | [CDC_SETUP][]           | Waived      | CDC flow not yet documented
+Code Quality  | [FPGA_TIMING][]         | Done        |
 Code Quality  | [CDC_SYNCMACRO][]       | Done        |
-Security      | [SEC_CM_IMPLEMENTED][]  | Not Started |
-Security      | [SEC_NON_RESET_FLOPS][] | Not Started |
-Security      | [SEC_SHADOW_REGS][]     | Not Started |
-Security      | [SEC_RND_CNST][]        | Not Started |
+Security      | [SEC_CM_IMPLEMENTED][]  | N/A         |
+Security      | [SEC_NON_RESET_FLOPS][] | N/A         |
+Security      | [SEC_SHADOW_REGS][]     | N/A         |
+Security      | [SEC_RND_CNST][]        | N/A         |
 
 [NEW_FEATURES]:        {{<relref "/doc/project/checklist.md#new_features" >}}
 [BLOCK_DIAGRAM]:       {{<relref "/doc/project/checklist.md#block_diagram" >}}
