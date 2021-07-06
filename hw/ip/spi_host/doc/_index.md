@@ -606,14 +606,109 @@ To use this reset, assert {{< regref "CONTROL.SW_RST" >}}, and then wait for the
 
 ## Design Details
 
-### Component Overview.
+### Component Overview
 
-**TODO** High level introductory description of
-- Control FSM
-- SDQ Shift register
-- Byte Select
-- Byte Merge
-- TX FIFO and RXFIFO interfaces
+Transaction data words flow through the SPI_HOST IP in a cycle which starts starting with the TX FIFOs, shown in the block diagram above.
+At the output of the TX FIFO's each data word is separated into individual bytes, by the Byte Select block, which is also responsible for parsing the byte-enable mask and discarding unwanted bytes.
+Selected bytes are then passed into the shift register, where they are played out at Standard, Dual, or Quad speed.
+For receive segments, outputs from the shift register are passed into the Byte Merge block to be packed into 32-bit words.
+Finally the repacked words are inserted into the RX FIFO to be read by firmware.
+
+All of the blocks in the data path use ready-valid handshakes for flow control.
+In addition the Byte Select block expects a `flush` pulse from the shift register to signify when no further data is needed for the particular segment, and so any remaining data in the current word can be discarded.
+Likewise, the Byte Merge block receives a `last` signal from the shift register to identify the end of a command segment so that any partial words can be passed into the RX FIFO, regardless of whether the data for that segment lines up with a full word.
+The shift register is then responsible for driving and receiving data on the `cio_sd` lines.
+It coordinates all of the data flow to and from the Byte Select and Byte Merge blocks.
+Meanwhile the timing of the shift register is dictated by the SPI_HOST FSM, which drives the `cio_sck` and `cio_csb` signals and dictates the correct timing for sending out the next beat of data, loading a new byte from the Byte Select, or sending another byte on to the Byte Merge block.
+The SPI_HOST FSM parses the software command segments and orchestrates the proper transmission of data through its control of the shift register.
+
+### RX and TX FIFOs
+
+The TX and RX FIFOs store the transmitted and received data, while also serving as the clock domain crossing for this SPI data.
+So in each direction there is at least one asynchronous FIFO, which serve as the CDC.
+The RX FIFO are is 32 bits wide, matching the width of the TLUL register bus.
+The TX FIFO on the other hand is 36 bits wide, with 32 bits of SPI data (again to match the TLUL bus width) plus 4 byte enable bits, which are passed into the core to allow the processing of unaligned writes.
+
+The depth of these FIFOs is controlled by two independent parameters for the RX and TX queues.
+Since the depth of asynchronous FIFOs is usually limited to powers of two, the TX or RX queue may consist of *two* FIFO components: an mandatory asynchronous FIFO and a possible synchronous component, connected in series.
+The depth of the asynchronous FIFO is set to the nearest power of two, any extra capacity, if needed is obtained by means of the second synchronous FIFO.
+For example, if the `TxDepth` parameter is set to 72 words, then the TX queue will consist of a 64-word asynchronous FIFO, which then feeds a second, synchronous FIFO which can hold the 8 words needed to realize a total depth of 72 words.
+
+### Byte Select
+
+The Byte Select, or `bytesel`, unit is responsible for unpacking data from the FIFO to it can be loaded into the shift register
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p......................"},
+  {name: "txfifo.out[31:0]", wave: "x2.............x.......", data: ['0xDAD5F00D']},
+  {name: "txfifo.empty", wave: "10.............1......."},
+  {name: "txfifo.rd_en",wave: "0.............10......."},
+  {name: "bytesel.q[31:0]", wave:"2..............2.......", data: ['0xBEADCAFE', '0xDAD5F00D']},
+  {name: "bytesel.almost_empty", wave: "0..........1...0......."},
+  {name: "bytesel.empty", wave: "0......................"},
+  ['Big-Endian mode',
+    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [3, 2, 1, 0, 3, 2]},
+  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xBE', '0xAD', '0xCA', '0xFE', '0xDA', '0xD5']},
+  {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
+  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
+  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xBE', '0xEX', '0xAD', '0xDX', '0xCA', '0xAX', '0xFE', '0xEX','0xDA', '0xAX']},
+  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','B','E','A','D','C','A','F','E', 'D','A']},
+
+],
+  ['Little-Endian mode',
+    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [0, 1, 2, 3, 0, 1]},
+  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xFE', '0xCA', '0xAD', '0xBE', '0x0D', '0xF0']},
+     {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
+  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
+  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xFE', '0xEX', '0xCA', '0xAX', '0xAD', '0xDX', '0xBE', '0xEX','0x0D', '0xDX']},
+  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','F','E','C','A','A','D','B','E','0','D']},
+],
+],
+  head: {
+  text: "Processing of TX FIFO data as a function of the ByteOrder parameter (0: BE, 1: LE)"
+  },
+   foot: {
+   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always the MSB."
+   }
+}
+{{< /wavejson >}}
+
+### Byte Merge
+
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i", wave: "p......................"},
+
+  {name: "sd[0:3] (*)", wave: "2.2.2.2.2.2.2.2.2.2.2.2", data: ['B','E','A','D','C','A','F','E','D','A', 'D', '5']},
+  {name: "shiftreg.sample", wave: "10101010101010101010101"},
+  {name: "shiftreg.q[7:0]", wave: "42.2.2.2.2.2.2.2.2.2.2.", data:["X","0xXB", "0xBE", "0xEA", "0xAD","0xDC","0xCA","0xAF","0xFE","0xED", "0xDA", "0xAD"]},
+  {name: "bytemerge.rd_en", wave: "0..10..10..10..10..10.."},
+  {name: "bytemerge.almost_full", wave: "0...........1...0......"},
+  ['BE',
+  {name: "bytemerge.idx", wave:"2...2...2...2...2...2..", data: [3,2,1,0, 3, 2]},
+  {name: "rxfifo.data_in[31:0]", wave:"2...2...2...2...2...2..", data: ["0xXXXXXXXX","0xBEXXXXXX","0xBEADXXXX", "0xBEADCAXX", "0xBEADCAFE", "0xDAADCAFE"]},
+  ],
+  ['LE',
+  {name: "bytemerge.idx", wave:"2...2...2...2...2...2..", data: [0,1,2,3,0,1]},
+  {name: "rxfifo.data_in[31:0]", wave:"2...2...2...2...2...2..", data: ["0xXXXXXXXX","0xXXXXXXBE","0xXXXXADBE", "0xXXCAADBE", "0xFECAADBE", "0xFECAADAD"]},
+  ],
+
+  {name: "rxfifo.wr_en", wave: "0...............10....."},
+  {name: "rxfifo.full", wave: "0......................"}
+  ],
+  head: {
+  text: "Collection of RXFIFO data as a function of ByteOrder parameter"
+  },
+   foot: {
+   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always contains the MSB."
+   }
+}
+{{< /wavejson >}}
+
+#### End of Command
+
+#### RXFIFO Full or TX FIFO Empty
 
 ### Command and Config CDC
 
@@ -758,82 +853,6 @@ edge: [],
 #### Dual mode
 
 #### Quad mode
-
-### Byte Select
-
-The Byte Select, or `bytesel`, unit is responsible for unpacking data from the FIFO to it can be loaded into the shift register
-
-{{< wavejson >}}
-{signal: [
-  {name: "clk_core_i", wave: "p......................"},
-  {name: "txfifo.out[31:0]", wave: "x2.............x.......", data: ['0xDAD5F00D']},
-  {name: "txfifo.empty", wave: "10.............1......."},
-  {name: "txfifo.rd_en",wave: "0.............10......."},
-  {name: "bytesel.q[31:0]", wave:"2..............2.......", data: ['0xBEADCAFE', '0xDAD5F00D']},
-  {name: "bytesel.almost_empty", wave: "0..........1...0......."},
-  {name: "bytesel.empty", wave: "0......................"},
-  ['Big-Endian mode',
-    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [3, 2, 1, 0, 3, 2]},
-  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xBE', '0xAD', '0xCA', '0xFE', '0xDA', '0xD5']},
-  {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
-  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
-  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xBE', '0xEX', '0xAD', '0xDX', '0xCA', '0xAX', '0xFE', '0xEX','0xDA', '0xAX']},
-  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','B','E','A','D','C','A','F','E', 'D','A']},
-
-],
-  ['Little-Endian mode',
-    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [0, 1, 2, 3, 0, 1]},
-  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xFE', '0xCA', '0xAD', '0xBE', '0x0D', '0xF0']},
-     {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
-  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
-  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xFE', '0xEX', '0xCA', '0xAX', '0xAD', '0xDX', '0xBE', '0xEX','0x0D', '0xDX']},
-  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','F','E','C','A','A','D','B','E','0','D']},
-],
-],
-  head: {
-  text: "Processing of TX FIFO data as a function of the ByteOrder parameter (0: BE, 1: LE)"
-  },
-   foot: {
-   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always the MSB."
-   }
-}
-{{< /wavejson >}}
-
-### Byte Merge
-
-{{< wavejson >}}
-{signal: [
-  {name: "clk_core_i", wave: "p......................"},
-
-  {name: "sd[0:3] (*)", wave: "2.2.2.2.2.2.2.2.2.2.2.2", data: ['B','E','A','D','C','A','F','E','D','A', 'D', '5']},
-  {name: "shiftreg.sample", wave: "10101010101010101010101"},
-  {name: "shiftreg.q[7:0]", wave: "42.2.2.2.2.2.2.2.2.2.2.", data:["X","0xXB", "0xBE", "0xEA", "0xAD","0xDC","0xCA","0xAF","0xFE","0xED", "0xDA", "0xAD"]},
-  {name: "bytemerge.rd_en", wave: "0..10..10..10..10..10.."},
-  {name: "bytemerge.almost_full", wave: "0...........1...0......"},
-  ['BE',
-  {name: "bytemerge.idx", wave:"2...2...2...2...2...2..", data: [3,2,1,0, 3, 2]},
-  {name: "rxfifo.data_in[31:0]", wave:"2...2...2...2...2...2..", data: ["0xXXXXXXXX","0xBEXXXXXX","0xBEADXXXX", "0xBEADCAXX", "0xBEADCAFE", "0xDAADCAFE"]},
-  ],
-  ['LE',
-  {name: "bytemerge.idx", wave:"2...2...2...2...2...2..", data: [0,1,2,3,0,1]},
-  {name: "rxfifo.data_in[31:0]", wave:"2...2...2...2...2...2..", data: ["0xXXXXXXXX","0xXXXXXXBE","0xXXXXADBE", "0xXXCAADBE", "0xFECAADBE", "0xFECAADAD"]},
-  ],
-
-  {name: "rxfifo.wr_en", wave: "0...............10....."},
-  {name: "rxfifo.full", wave: "0......................"}
-  ],
-  head: {
-  text: "Collection of RXFIFO data as a function of ByteOrder parameter"
-  },
-   foot: {
-   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always contains the MSB."
-   }
-}
-{{< /wavejson >}}
-
-#### End of Command
-
-#### RXFIFO Full or TX FIFO Empty
 
 ### Config/Command CDC
 
