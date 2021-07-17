@@ -25,19 +25,21 @@ module spi_host_byte_merge (
   logic               last_d;
   logic               do_fill;
   logic               byte_incoming;
+  logic        [7:0]  input_byte;
 
   // Don't clear data except on reset;
-  assign clr = sw_rst_i;
+  assign clr           = sw_rst_i;
   assign byte_incoming = byte_valid_i & byte_ready_o;
 
-  assign last_d       = sw_rst_i                     ? 1'b0 :
-                        byte_incoming && byte_last_i ? 1'b1 :
-                        word_valid_o                 ? 1'b0 :
-                        last_q;
+  assign last_d        = sw_rst_i                     ? 1'b0 :
+                         byte_incoming && byte_last_i ? 1'b1 :
+                         word_valid_o                 ? 1'b0 :
+                         last_q;
 
-  assign do_fill      = last_q & ~word_valid_o;
-  assign byte_valid   = do_fill | byte_valid_i;
-  assign byte_ready_o = byte_ready & ~do_fill;
+  assign do_fill       = last_q & ~word_valid_o;
+  assign byte_valid    = do_fill | byte_valid_i;
+  assign byte_ready_o  = byte_ready & ~do_fill;
+  assign input_byte    = do_fill ? 8'h00 : byte_i; 
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
@@ -54,7 +56,7 @@ module spi_host_byte_merge (
     .clk_i,
     .rst_ni,
     .clr_i    (clr),
-    .wdata_i  (byte_i),
+    .wdata_i  (input_byte),
     .wvalid_i (byte_valid),
     .wready_o (byte_ready),
     .rdata_o  (word_o),
