@@ -513,8 +513,6 @@ This feature is entirely controlled by intermodule signals `passthrough_i` and `
 If `passthrough_i.passthrough_en` is asserted the SPI_HOST peripheral bus signals reflect the corresponding signals in the `passthrough_i` structure.
 Otherwise, the peripheral signals are controlled by the SPI_HOST FSM and the internal shift register.
 
-
-
 ## Interrupt aggregation
 
 In order to reduce the total number of interrupts in the system, the SPI_HOST has only two interrupt lines: `error` and `spi_event`.
@@ -604,9 +602,9 @@ To use this reset, assert {{< regref "CONTROL.SW_RST" >}}, and then wait for the
 
 {{< incGenFromIpDesc "../data/spi_host.hjson" "hwcfg" >}}
 
-## Design Details
+# Design Details
 
-### Component Overview
+## Component Overview
 
 Transaction data words flow through the SPI_HOST IP in a cycle which starts starting with the TX FIFOs, shown in the block diagram above.
 At the output of the TX FIFO's each data word is separated into individual bytes, by the Byte Select block, which is also responsible for parsing the byte-enable mask and discarding unwanted bytes.
@@ -622,7 +620,7 @@ It coordinates all of the data flow to and from the Byte Select and Byte Merge b
 Meanwhile the timing of the shift register is dictated by the SPI_HOST FSM, which drives the `cio_sck` and `cio_csb` signals and dictates the correct timing for sending out the next beat of data, loading a new byte from the Byte Select, or sending another byte on to the Byte Merge block.
 The SPI_HOST FSM parses the software command segments and orchestrates the proper transmission of data through its control of the shift register.
 
-### RX and TX FIFOs
+## RX and TX FIFOs
 
 The TX and RX FIFOs store the transmitted and received data, while also serving as the clock domain crossing for this SPI data.
 So in each direction there is at least one asynchronous FIFO, which serve as the CDC.
@@ -631,51 +629,68 @@ The TX FIFO on the other hand is 36 bits wide, with 32 bits of SPI data (again t
 
 The depth of these FIFOs is controlled by two independent parameters for the RX and TX queues.
 Since the depth of asynchronous FIFOs is usually limited to powers of two, the TX or RX queue may consist of *two* FIFO components: an mandatory asynchronous FIFO and a possible synchronous component, connected in series.
-The depth of the asynchronous FIFO is set to the nearest power of two, any extra capacity, if needed is obtained by means of the second synchronous FIFO.
-For example, if the `TxDepth` parameter is set to 72 words, then the TX queue will consist of a 64-word asynchronous FIFO, which then feeds a second, synchronous FIFO which can hold the 8 words needed to realize a total depth of 72 words.
+The depth of the asynchronous FIFO is set to the nearest power of two.
+Any additional capacity is provided by the second synchronous FIFO if needed.
+For example, if the `TxDepth` parameter is set to 72 words, then the TX queue will consist of a 64-word asynchronous FIFO, which then feeds a second, synchronous FIFO to hold the 8 words needed to realize a total depth of 72 words.
 
-### Byte Select
+## Byte Select
 
-The Byte Select, or `bytesel`, unit is responsible for unpacking data from the FIFO to it can be loaded into the shift register
+The Byte Select, or `bytesel`, unit is responsible for loading words from the FIFO and feeding indiviudal bytes into the shift register.
+This unit takes two data inputs: a data word, `word_i[31:0]`, and a byte enable signal, `word_be_i[3:0]`.
+There is a single output, `byte_o[7:0]`, which feeds the following shift register.
+Flow control by ready/valid signals for all inputs and outputs.
+The shift register asserts ready to request new bytes, based on control inputs from the SPI_HOST FSM.
+
+When the SPI_HOST FSM indicates the final byte for a segment, the shift register asserts the `flush` signal with `ready` as it requests the last byte from the Byte Select.
+This instructs the Byte Select block to send one more byte from current word, and then discard any remaining unused bytes, before immediately loading the available word from the TX FIFO.
+
+It is assumed that the input data-words and byte enables have already been byte-swapped at the IP top level, as needed.
+The bytes are transmitted to the shift register in decreasing significance, starting with `word_i[31:24]`, followed by `word_i[23:16]`, `word_i[15:8]`, and finally `word_i[7:0]`.
+
+Some bytes may be skipped however if the corresponding value of `word_be_i[3:0]` is zero.
+For example if `word_be_i[3:0]` equals `4'b0011`, then the first two input bytes will be skipped, and only `word_i[15:8]` and `word_i[7:0]` will be forwarded, in that order. 
+
+The following waveform illustrates the operation of the Byte Select module, highlighting the effect of the `flush_i` signal (in the first input word), as well as the effect of the byte enable signal (shown in the second word). 
 
 {{< wavejson >}}
 {signal: [
-  {name: "clk_core_i", wave: "p......................"},
-  {name: "txfifo.out[31:0]", wave: "x2.............x.......", data: ['0xDAD5F00D']},
-  {name: "txfifo.empty", wave: "10.............1......."},
-  {name: "txfifo.rd_en",wave: "0.............10......."},
-  {name: "bytesel.q[31:0]", wave:"2..............2.......", data: ['0xBEADCAFE', '0xDAD5F00D']},
-  {name: "bytesel.almost_empty", wave: "0..........1...0......."},
-  {name: "bytesel.empty", wave: "0......................"},
-  ['Big-Endian mode',
-    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [3, 2, 1, 0, 3, 2]},
-  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xBE', '0xAD', '0xCA', '0xFE', '0xDA', '0xD5']},
-  {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
-  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
-  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xBE', '0xEX', '0xAD', '0xDX', '0xCA', '0xAX', '0xFE', '0xEX','0xDA', '0xAX']},
-  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','B','E','A','D','C','A','F','E', 'D','A']},
-
-],
-  ['Little-Endian mode',
-    {name: "bytesel.idx[1:0]", wave: "2..2...2...2...2...2...", data: [0, 1, 2, 3, 0, 1]},
-  {name: "bytesel.out[7:0]", wave: "2..2...2...2...2...2...", data: ['0xFE', '0xCA', '0xAD', '0xBE', '0x0D', '0xF0']},
-     {name: "shiftreg.wr_en", wave: "0.10..10..10..10..10..1"},
-  {name: "shiftreg.shift", wave: "0...10..10..10..10..10."},
-  {name: "shiftreg.q[7:0]", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','0xFE', '0xEX', '0xCA', '0xAX', '0xAD', '0xDX', '0xBE', '0xEX','0x0D', '0xDX']},
-  {name: "sd[0:3] (*)", wave: "4..2.2.2.2.2.2.2.2.2.2.", data: ['','F','E','C','A','A','D','B','E','0','D']},
-],
-],
+  {name: "clk_core_i", wave:      "p............."},
+  {name: "word_i[31:0]", wave:    "x2..x2...x....", data: ["32'hBEADCAFE", "32'hDAD5F00D"]},
+  {name: "word_be_i[31:0]", wave: "x2..x2...x....", data: ["4'b1111", "4'b0011"]},
+  {name: "word_valid_i", wave:    "0..101...0...."},
+  {name: "word_ready_o",wave:     "1...0...10...."},
+  {name: "byte_o[7:0]", wave:     "x...2222.2222x", data: ["BE", "AD", "CA", "0", "DA", "D5", "F0", "0D"]},
+  {name: "byte_valid_o", wave:    "0...1..0...1.0"},
+  {name: "byte_ready_i", wave:    "1............."},
+  {name: "byte_flush_i", wave:    "0.....10......"},
+  ],
   head: {
-  text: "Processing of TX FIFO data as a function of the ByteOrder parameter (0: BE, 1: LE)"
-  },
-   foot: {
-   text: "*Note bit-ordering for the sd bus. For Dual and Quad mode commands, sd[0] is always the MSB."
-   }
+  text: "Byte Select Operation"
+  }
 }
 {{< /wavejson >}}
 
-### Byte Merge
+## Byte Merge
 
+{{< wavejson >}}
+{signal: [
+  {name: "clk_core_i",   wave: "p.............."},
+  {name: "byte_i[7:0]",  wave: "x22222.2....22x", data: ["01", "02", "03", "04", "05", "06", "07", "08"]},
+  {name: "byte_valid_i", wave: "01............."},
+  {name: "byte_last_i",  wave: "0....1.0......."},
+  {name: "byte_ready_o", wave: "1....010...1..."},
+  {name: "word_o[31:0]", wave: "2.2222222222222", data: ["0", "01","0102","010203", "01020304", "0", "05", "0500", "05000", "050000", "0", "06", "0607", "060708"]},
+  {name: "word_valid_o", wave: "0....10...10..."},
+  {name: "word_ready_i", wave: "1.............."}
+  ],
+ config: {hscale:2},
+  head: {
+  text: "Byte Select Operation"
+  }
+}
+{{< /wavejson >}}
+
+***Older figure***
 {{< wavejson >}}
 {signal: [
   {name: "clk_core_i", wave: "p......................"},
@@ -706,11 +721,11 @@ The Byte Select, or `bytesel`, unit is responsible for unpacking data from the F
 }
 {{< /wavejson >}}
 
-#### End of Command
+### End of Command
 
-#### RXFIFO Full or TX FIFO Empty
+### RXFIFO Full or TX FIFO Empty
 
-### Command and Config CDC
+## Command and Config CDC
 
 Highlights for this unit:
 - New commands can always be written to {{< regref "COMMAND" >}} or {{< regref "CONFIGOPTS" >}}
@@ -756,7 +771,7 @@ Highlights for this unit:
 }
 {{< /wavejson >}}
 
-### Shift Register
+## Shift Register
 
 {{< wavejson >}}
 {signal: [
@@ -848,15 +863,13 @@ edge: [],
 }
 {{< /wavejson >}}
 
-#### Standard mode
+### Standard mode
 
-#### Dual mode
+### Dual mode
 
-#### Quad mode
+### Quad mode
 
-### Config/Command CDC
-
-### Passthrough Mode Multiplexors
+## Config/Command CDC
 
 # Programmer's Guide
 
